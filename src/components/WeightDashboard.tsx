@@ -1,7 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Plus, TrendingUp, Calendar, Target, Scale } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 export function WeightDashboard() {
   const { user, userProfile, weightEntries, signOut, addWeight } = useAuth();
@@ -49,6 +70,91 @@ export function WeightDashboard() {
     const totalChange = userProfile.starting_weight - userProfile.target_weight;
     const currentChange = userProfile.starting_weight - currentWeight;
     return Math.min((currentChange / totalChange) * 100, 100);
+  };
+
+  const getChartData = () => {
+    if (weightEntries.length === 0) return null;
+
+    // Sort entries by date (oldest first for chart)
+    const sortedEntries = [...weightEntries].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const labels = sortedEntries.map((entry) =>
+      format(parseISO(entry.date), "MMM d")
+    );
+
+    const weights = sortedEntries.map((entry) => entry.weight);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Weight (lbs)",
+          data: weights,
+          borderColor: "rgb(59, 130, 246)",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          borderWidth: 3,
+          pointBackgroundColor: "rgb(59, 130, 246)",
+          pointBorderColor: "rgb(59, 130, 246)",
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.1,
+        },
+      ],
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      title: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        titleColor: "white",
+        bodyColor: "white",
+        borderColor: "rgb(59, 130, 246)",
+        borderWidth: 1,
+        callbacks: {
+          label: function (context: any) {
+            return `Weight: ${context.parsed.y} lbs`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: "#6B7280",
+          font: {
+            size: 12,
+          },
+        },
+      },
+      y: {
+        grid: {
+          color: "rgba(107, 114, 128, 0.1)",
+        },
+        ticks: {
+          color: "#6B7280",
+          font: {
+            size: 12,
+          },
+          callback: function (value: any) {
+            return value + " lbs";
+          },
+        },
+      },
+    },
   };
 
   return (
@@ -137,6 +243,24 @@ export function WeightDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Weight Progress Chart */}
+        {weightEntries.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Weight Progress
+              </h3>
+              <div className="text-sm text-gray-600">
+                {weightEntries.length} entries
+              </div>
+            </div>
+            <div className="h-80">
+              <Line data={getChartData()!} options={chartOptions} />
+            </div>
+          </div>
+        )}
 
         {/* Add Weight Button */}
         <div className="mb-6">

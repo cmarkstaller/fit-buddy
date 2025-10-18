@@ -10,9 +10,9 @@ import {
   saveUserProfile,
   getUserProfile,
   addWeightEntry,
-  getWeightEntries,
   signOut as localSignOut,
 } from "../lib/localStorage";
+import { mockWeightEntries, DEMO_USER_ID_FOR_WEIGHTS } from "../data/weights";
 
 interface AuthContextType {
   user: User | null;
@@ -41,10 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       const profile = getUserProfile(currentUser.id);
       setUserProfile(profile);
-      if (profile) {
-        const entries = getWeightEntries(currentUser.id);
-        setWeightEntries(entries);
-      }
+      // For demo purposes, load weight entries from mock data instead of storage
+      setWeightEntries(
+        mockWeightEntries
+          .map((entry) => ({ ...entry, user_id: currentUser.id })) // Map to current user
+          .sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
+      );
     }
     setLoading(false);
   }, []);
@@ -73,10 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (authUser) {
       const profile = getUserProfile(authUser.id);
       setUserProfile(profile);
-      if (profile) {
-        const entries = getWeightEntries(authUser.id);
-        setWeightEntries(entries);
-      }
+      // For demo purposes, load weight entries from mock data instead of storage
+      setWeightEntries(
+        mockWeightEntries
+          .map((entry) => ({ ...entry, user_id: authUser.id })) // Map to current user
+          .sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
+      );
     }
 
     return { error: null };
@@ -108,14 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: { message: "No user logged in" } };
     }
 
-    const { entry, error } = addWeightEntry(user.id, weight, notes);
-    if (error) {
-      return { error: { message: error } };
-    }
-
-    // Update local state
-    const entries = getWeightEntries(user.id);
-    setWeightEntries(entries);
+    // Update in-memory mock list for demo
+    const newEntry: WeightEntry = {
+      id: Date.now().toString(36),
+      user_id: user.id,
+      weight,
+      date: new Date().toISOString().split("T")[0],
+      notes: notes || undefined,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setWeightEntries((prev) => [newEntry, ...prev]);
 
     return { error: null };
   };
