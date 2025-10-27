@@ -9,10 +9,9 @@ import {
   getCurrentUser,
   saveUserProfile,
   getUserProfile,
-  addWeightEntry,
   signOut as localSignOut,
 } from "../lib/localStorage";
-import { mockWeightEntries, DEMO_USER_ID_FOR_WEIGHTS } from "../data/weights";
+import { mockWeightEntries } from "../data/weights";
 
 interface AuthContextType {
   user: User | null;

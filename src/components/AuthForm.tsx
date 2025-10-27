@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Scale, Mail, Lock, User } from "lucide-react";
+import { Scale, Mail, Lock } from "lucide-react";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);

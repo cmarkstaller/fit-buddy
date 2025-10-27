@@ -1,9 +1,4 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AuthForm } from "./components/AuthForm";
 import { ProfileSetup } from "./components/ProfileSetup";
