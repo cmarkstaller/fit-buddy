@@ -3,15 +3,13 @@ import {
   User,
   UserProfile,
   WeightEntry,
-  createUser,
-  authenticateUser,
   setCurrentUser,
   getCurrentUser,
   saveUserProfile,
   getUserProfile,
-  signOut as localSignOut,
 } from "../lib/localStorage";
 import { mockWeightEntries } from "../data/weights";
+import { supabase } from "../lib/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -34,55 +32,109 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing user session
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-      const profile = getUserProfile(currentUser.id);
-      setUserProfile(profile);
-      // For demo purposes, load weight entries from mock data instead of storage
-      setWeightEntries(
-        mockWeightEntries
-          .map((entry) => ({ ...entry, user_id: currentUser.id })) // Map to current user
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-      );
-    }
-    setLoading(false);
+    // Check for existing Supabase session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const appUser: User = {
+          id: session.user.id,
+          email: session.user.email!,
+          created_at: session.user.created_at,
+        };
+        setUser(appUser);
+        setCurrentUser(appUser); // Store in localStorage for compatibility
+        
+        const profile = getUserProfile(appUser.id);
+        setUserProfile(profile);
+        
+        // For demo purposes, load weight entries from mock data
+        setWeightEntries(
+          mockWeightEntries
+            .map((entry) => ({ ...entry, user_id: appUser.id }))
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        );
+      }
+      
+      setLoading(false);
+    };
+    
+    checkSession();
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const appUser: User = {
+          id: session.user.id,
+          email: session.user.email!,
+          created_at: session.user.created_at,
+        };
+        setUser(appUser);
+        setCurrentUser(appUser);
+        
+        const profile = getUserProfile(appUser.id);
+        setUserProfile(profile);
+      } else {
+        setUser(null);
+        setUserProfile(null);
+        setWeightEntries([]);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const { user: newUser, error } = createUser(email, password);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
     if (error) {
-      return { error: { message: error } };
+      return { error: { message: error.message } };
     }
 
-    setCurrentUser(newUser);
-    setUser(newUser);
+    if (data.user) {
+      const appUser: User = {
+        id: data.user.id,
+        email: data.user.email!,
+        created_at: data.user.created_at,
+      };
+      setUser(appUser);
+      setCurrentUser(appUser);
+    }
+
     return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { user: authUser, error } = authenticateUser(email, password);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) {
-      return { error: { message: error } };
+      return { error: { message: error.message } };
     }
 
-    setCurrentUser(authUser);
-    setUser(authUser);
+    if (data.user) {
+      const appUser: User = {
+        id: data.user.id,
+        email: data.user.email!,
+        created_at: data.user.created_at,
+      };
+      setUser(appUser);
+      setCurrentUser(appUser);
 
-    // Load user profile and weight entries
-    if (authUser) {
-      const profile = getUserProfile(authUser.id);
+      // Load user profile and weight entries
+      const profile = getUserProfile(appUser.id);
       setUserProfile(profile);
-      // For demo purposes, load weight entries from mock data instead of storage
+      
+      // For demo purposes, load weight entries from mock data
       setWeightEntries(
         mockWeightEntries
-          .map((entry) => ({ ...entry, user_id: authUser.id })) // Map to current user
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
+          .map((entry) => ({ ...entry, user_id: appUser.id }))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       );
     }
 
@@ -90,10 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    localSignOut();
-    setUser(null);
-    setUserProfile(null);
-    setWeightEntries([]);
+    await supabase.auth.signOut();
+    // Clear local state is handled by the auth state change listener
   };
 
   const updateProfile = async (profile: Partial<UserProfile>) => {
