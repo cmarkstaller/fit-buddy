@@ -3,243 +3,109 @@ import { WeightEntry } from "../lib/localStorage";
 // Dummy weight data for a demo user. Dates are most-recent first.
 const DEMO_USER_ID = "demo-user";
 
-export const mockWeightEntries: WeightEntry[] = [
-  {
-    id: "w-001",
-    user_id: DEMO_USER_ID,
-    weight: 170.2,
-    date: "2025-01-15",
-    notes: "Great progress! Feeling energized",
-    created_at: "2025-01-15T08:00:00.000Z",
-    updated_at: "2025-01-15T08:00:00.000Z",
-  },
-  {
-    id: "w-002",
-    user_id: DEMO_USER_ID,
-    weight: 171.0,
-    date: "2025-01-08",
-    created_at: "2025-01-08T08:00:00.000Z",
-    updated_at: "2025-01-08T08:00:00.000Z",
-  },
-  {
-    id: "w-003",
-    user_id: DEMO_USER_ID,
-    weight: 172.1,
-    date: "2025-01-01",
-    notes: "New year, new goals!",
-    created_at: "2025-01-01T08:00:00.000Z",
-    updated_at: "2025-01-01T08:00:00.000Z",
-  },
-  {
-    id: "w-004",
-    user_id: DEMO_USER_ID,
-    weight: 173.3,
-    date: "2024-12-25",
-    notes: "Holiday weight - expected",
-    created_at: "2024-12-25T08:00:00.000Z",
-    updated_at: "2024-12-25T08:00:00.000Z",
-  },
-  {
-    id: "w-005",
-    user_id: DEMO_USER_ID,
-    weight: 171.8,
-    date: "2024-12-18",
-    created_at: "2024-12-18T08:00:00.000Z",
-    updated_at: "2024-12-18T08:00:00.000Z",
-  },
-  {
-    id: "w-006",
-    user_id: DEMO_USER_ID,
-    weight: 172.9,
-    date: "2024-12-11",
-    created_at: "2024-12-11T08:00:00.000Z",
-    updated_at: "2024-12-11T08:00:00.000Z",
-  },
-  {
-    id: "w-007",
-    user_id: DEMO_USER_ID,
-    weight: 174.2,
-    date: "2024-12-04",
-    created_at: "2024-12-04T08:00:00.000Z",
-    updated_at: "2024-12-04T08:00:00.000Z",
-  },
-  {
-    id: "w-008",
-    user_id: DEMO_USER_ID,
-    weight: 175.0,
-    date: "2024-11-27",
-    created_at: "2024-11-27T08:00:00.000Z",
-    updated_at: "2024-11-27T08:00:00.000Z",
-  },
-  {
-    id: "w-009",
-    user_id: DEMO_USER_ID,
-    weight: 175.8,
-    date: "2024-11-20",
-    created_at: "2024-11-20T08:00:00.000Z",
-    updated_at: "2024-11-20T08:00:00.000Z",
-  },
-  {
-    id: "w-010",
-    user_id: DEMO_USER_ID,
-    weight: 176.5,
-    date: "2024-11-13",
-    created_at: "2024-11-13T08:00:00.000Z",
-    updated_at: "2024-11-13T08:00:00.000Z",
-  },
-  {
-    id: "w-011",
-    user_id: DEMO_USER_ID,
-    weight: 177.2,
-    date: "2024-11-06",
-    created_at: "2024-11-06T08:00:00.000Z",
-    updated_at: "2024-11-06T08:00:00.000Z",
-  },
-  {
-    id: "w-012",
-    user_id: DEMO_USER_ID,
-    weight: 178.1,
-    date: "2024-10-30",
-    created_at: "2024-10-30T08:00:00.000Z",
-    updated_at: "2024-10-30T08:00:00.000Z",
-  },
-  {
-    id: "w-013",
-    user_id: DEMO_USER_ID,
-    weight: 179.0,
-    date: "2024-10-23",
-    created_at: "2024-10-23T08:00:00.000Z",
-    updated_at: "2024-10-23T08:00:00.000Z",
-  },
-  {
-    id: "w-014",
-    user_id: DEMO_USER_ID,
-    weight: 180.2,
-    date: "2024-10-16",
-    created_at: "2024-10-16T08:00:00.000Z",
-    updated_at: "2024-10-16T08:00:00.000Z",
-  },
-  {
-    id: "w-015",
-    user_id: DEMO_USER_ID,
-    weight: 181.1,
-    date: "2024-10-09",
-    created_at: "2024-10-09T08:00:00.000Z",
-    updated_at: "2024-10-09T08:00:00.000Z",
-  },
-  {
-    id: "w-016",
-    user_id: DEMO_USER_ID,
-    weight: 182.3,
-    date: "2024-10-02",
-    created_at: "2024-10-02T08:00:00.000Z",
-    updated_at: "2024-10-02T08:00:00.000Z",
-  },
-  {
-    id: "w-017",
-    user_id: DEMO_USER_ID,
-    weight: 183.5,
-    date: "2024-09-25",
-    created_at: "2024-09-25T08:00:00.000Z",
-    updated_at: "2024-09-25T08:00:00.000Z",
-  },
-  {
-    id: "w-018",
-    user_id: DEMO_USER_ID,
-    weight: 184.2,
-    date: "2024-09-18",
-    created_at: "2024-09-18T08:00:00.000Z",
-    updated_at: "2024-09-18T08:00:00.000Z",
-  },
-  {
-    id: "w-019",
-    user_id: DEMO_USER_ID,
-    weight: 185.1,
-    date: "2024-09-11",
-    created_at: "2024-09-11T08:00:00.000Z",
-    updated_at: "2024-09-11T08:00:00.000Z",
-  },
-  {
-    id: "w-020",
-    user_id: DEMO_USER_ID,
-    weight: 186.0,
-    date: "2024-09-04",
-    created_at: "2024-09-04T08:00:00.000Z",
-    updated_at: "2024-09-04T08:00:00.000Z",
-  },
-  {
-    id: "w-021",
-    user_id: DEMO_USER_ID,
-    weight: 187.2,
-    date: "2024-08-28",
-    created_at: "2024-08-28T08:00:00.000Z",
-    updated_at: "2024-08-28T08:00:00.000Z",
-  },
-  {
-    id: "w-022",
-    user_id: DEMO_USER_ID,
-    weight: 188.1,
-    date: "2024-08-21",
-    created_at: "2024-08-21T08:00:00.000Z",
-    updated_at: "2024-08-21T08:00:00.000Z",
-  },
-  {
-    id: "w-023",
-    user_id: DEMO_USER_ID,
-    weight: 189.3,
-    date: "2024-08-14",
-    created_at: "2024-08-14T08:00:00.000Z",
-    updated_at: "2024-08-14T08:00:00.000Z",
-  },
-  {
-    id: "w-024",
-    user_id: DEMO_USER_ID,
-    weight: 190.0,
-    date: "2024-08-07",
-    created_at: "2024-08-07T08:00:00.000Z",
-    updated_at: "2024-08-07T08:00:00.000Z",
-  },
-  {
-    id: "w-025",
-    user_id: DEMO_USER_ID,
-    weight: 191.2,
-    date: "2024-07-31",
-    created_at: "2024-07-31T08:00:00.000Z",
-    updated_at: "2024-07-31T08:00:00.000Z",
-  },
-  {
-    id: "w-026",
-    user_id: DEMO_USER_ID,
-    weight: 192.1,
-    date: "2024-07-24",
-    created_at: "2024-07-24T08:00:00.000Z",
-    updated_at: "2024-07-24T08:00:00.000Z",
-  },
-  {
-    id: "w-027",
-    user_id: DEMO_USER_ID,
-    weight: 193.0,
-    date: "2024-07-17",
-    created_at: "2024-07-17T08:00:00.000Z",
-    updated_at: "2024-07-17T08:00:00.000Z",
-  },
-  {
-    id: "w-028",
-    user_id: DEMO_USER_ID,
-    weight: 194.2,
-    date: "2024-07-10",
-    created_at: "2024-07-10T08:00:00.000Z",
-    updated_at: "2024-07-10T08:00:00.000Z",
-  },
-  {
-    id: "w-029",
-    user_id: DEMO_USER_ID,
-    weight: 195.0,
-    date: "2024-07-03",
-    notes: "Starting my weight loss journey!",
-    created_at: "2024-07-03T08:00:00.000Z",
-    updated_at: "2024-07-03T08:00:00.000Z",
-  },
-];
+// Helper function to generate date strings
+const formatDate = (date: Date): string => {
+  return date.toISOString().split("T")[0];
+};
+
+const formatDateTime = (date: Date): string => {
+  return date.toISOString();
+};
+
+// Generate realistic weight loss data starting from Oct 27, 2024 (1 year ago) to Oct 27, 2025
+const generateWeightEntries = (): WeightEntry[] => {
+  const entries: WeightEntry[] = [];
+  const startDate = new Date(2024, 9, 27); // Oct 27, 2024
+  const endDate = new Date(2025, 9, 27); // Oct 27, 2025
+
+  // Starting weight 195 lbs, target 180 lbs
+  let currentWeight = 195.0;
+
+  // Some milestone notes
+  const notesTimeline: Record<string, string> = {
+    "2024-10-27": "Starting my weight loss journey!",
+    "2024-11-24": "Thanksgiving - slight setback, but back on track",
+    "2024-12-24": "Christmas temptation, staying consistent",
+    "2024-12-31": "New Year's resolution in action",
+    "2025-02-14": "Valentine's Day - treating myself responsibly",
+    "2025-04-01": "Spring is here, feeling great!",
+    "2025-07-04": "Summer progress, halfway to goal!",
+    "2025-10-01": "Almost at the finish line!",
+    "2025-10-27": "One year of dedication, hit my target!",
+  };
+
+  // Last month date threshold (September 27, 2025)
+  const lastMonthThreshold = new Date(2025, 8, 27); // Sept 27, 2025
+
+  // Generate entries roughly every 3-4 days (some variation for realism)
+  let date = new Date(startDate);
+  let entryId = 1;
+
+  while (date <= endDate && currentWeight >= 180.0) {
+    // Random weight variation (-0.5 to 0.5 lbs) to simulate daily fluctuation
+    const randomVariation = (Math.random() - 0.5) * 0.6;
+
+    // Progressive weight loss: faster at beginning, slower towards end
+    const progress = 1 - (currentWeight - 180) / (195 - 180);
+    const weeklyLoss = progress < 0.3 ? 0.4 : progress < 0.7 ? 0.3 : 0.2;
+
+    // Determine if this is the last month (daily entries)
+    const isLastMonth = date >= lastMonthThreshold;
+
+    // Determine days to add based on which period we're in
+    if (isLastMonth) {
+      // Last month: daily entries
+      currentWeight = currentWeight - weeklyLoss / 7 + randomVariation;
+    } else {
+      // Earlier periods: 3-4 days between entries
+      // Occasionally add a small gain to simulate plateaus
+      const addGain = Math.random() < 0.08 && currentWeight < 190;
+      const daysBetweenEntries = Math.floor(Math.random() * 2) + 3;
+      currentWeight = addGain
+        ? currentWeight + 0.3
+        : currentWeight -
+          (weeklyLoss / 7) * daysBetweenEntries +
+          randomVariation;
+    }
+
+    // Ensure we don't go below target
+    currentWeight = Math.max(currentWeight, 180.0);
+
+    const dateStr = formatDate(date);
+    const dateTime = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      8,
+      0
+    );
+
+    entries.push({
+      id: `w-${String(entryId).padStart(3, "0")}`,
+      user_id: DEMO_USER_ID,
+      weight: Math.round(currentWeight * 10) / 10,
+      date: dateStr,
+      notes: notesTimeline[dateStr] || undefined,
+      created_at: formatDateTime(dateTime),
+      updated_at: formatDateTime(dateTime),
+    });
+
+    // Add days based on which period we're in
+    if (isLastMonth) {
+      // Last month: increment by 1 day
+      date.setDate(date.getDate() + 1);
+    } else {
+      // Earlier periods: add 3-4 days randomly
+      const daysToAdd = Math.floor(Math.random() * 2) + 3;
+      date.setDate(date.getDate() + daysToAdd);
+    }
+    entryId++;
+  }
+
+  // Reverse to have most recent first
+  return entries.reverse();
+};
+
+export const mockWeightEntries: WeightEntry[] = generateWeightEntries();
 
 export const DEMO_USER_ID_FOR_WEIGHTS = DEMO_USER_ID;

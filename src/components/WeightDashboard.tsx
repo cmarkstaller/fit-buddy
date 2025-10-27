@@ -6,6 +6,7 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  TimeScale,
   PointElement,
   LineElement,
   Title,
@@ -13,10 +14,12 @@ import {
   Legend,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import "chartjs-adapter-date-fns";
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  TimeScale,
   PointElement,
   LineElement,
   Title,
@@ -81,24 +84,19 @@ export function WeightDashboard() {
     // Filter entries based on selected time period
     const now = new Date();
     let cutoffDate: Date;
-    let dateFormat = "MMM d";
 
     switch (timePeriod) {
       case "week":
         cutoffDate = subDays(now, 7);
-        dateFormat = "EEE M/d";
         break;
       case "month":
         cutoffDate = subMonths(now, 1);
-        dateFormat = "MMM d";
         break;
       case "year":
         cutoffDate = subYears(now, 1);
-        dateFormat = "MMM d, yyyy";
         break;
       default:
         cutoffDate = new Date(0);
-        dateFormat = "MMM d";
     }
 
     // Filter and sort entries by date (oldest first for chart)
@@ -110,24 +108,21 @@ export function WeightDashboard() {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    const labels = sortedEntries.map((entry) =>
-      format(parseISO(entry.date), dateFormat)
-    );
-
-    const weights = sortedEntries.map((entry) => entry.weight);
+    // Convert to time scale format with x (timestamp) and y (weight) values
+    const data = sortedEntries.map((entry) => ({
+      x: entry.date,
+      y: entry.weight,
+    }));
 
     return {
-      labels,
       datasets: [
         {
           label: "Weight (lbs)",
-          data: weights,
-          borderColor: "rgb(59, 130, 246)",
+          data: data,
+          borderColor: "rgb(34, 85, 108)",
           backgroundColor: "rgba(59, 130, 246, 0.1)",
           borderWidth: 3,
-          pointBackgroundColor: "rgb(59, 130, 246)",
-          pointBorderColor: "rgb(59, 130, 246)",
-          pointRadius: 4,
+          pointRadius: 0,
           pointHoverRadius: 6,
           tension: 0.1,
         },
@@ -152,6 +147,9 @@ export function WeightDashboard() {
         borderColor: "rgb(59, 130, 246)",
         borderWidth: 1,
         callbacks: {
+          title: function (context: any) {
+            return format(parseISO(context[0].raw.x), "MMM d, yyyy");
+          },
           label: function (context: any) {
             return `Weight: ${context.parsed.y} lbs`;
           },
@@ -160,6 +158,23 @@ export function WeightDashboard() {
     },
     scales: {
       x: {
+        type: "time" as const,
+        time: {
+          unit: (timePeriod === "week"
+            ? "day"
+            : timePeriod === "month"
+            ? "week"
+            : timePeriod === "year"
+            ? "month"
+            : "day") as "day" | "week" | "month",
+          displayFormats: {
+            day: "EEE d",
+            week: "MMM d",
+            month: "MMM yyyy",
+            year: "yyyy",
+          },
+          tooltipFormat: "MMM d, yyyy",
+        },
         grid: {
           display: false,
         },
@@ -168,6 +183,7 @@ export function WeightDashboard() {
           font: {
             size: 12,
           },
+          source: "auto" as const,
         },
       },
       y: {
