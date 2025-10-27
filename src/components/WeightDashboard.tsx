@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Plus, TrendingUp, Calendar, Target, Scale } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays, subMonths, subYears } from "date-fns";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -30,6 +30,9 @@ export function WeightDashboard() {
   const [newWeight, setNewWeight] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<
+    "week" | "month" | "year" | "all"
+  >("all");
 
   const addWeightEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,13 +78,40 @@ export function WeightDashboard() {
   const getChartData = () => {
     if (weightEntries.length === 0) return null;
 
-    // Sort entries by date (oldest first for chart)
-    const sortedEntries = [...weightEntries].sort(
+    // Filter entries based on selected time period
+    const now = new Date();
+    let cutoffDate: Date;
+    let dateFormat = "MMM d";
+
+    switch (timePeriod) {
+      case "week":
+        cutoffDate = subDays(now, 7);
+        dateFormat = "EEE M/d";
+        break;
+      case "month":
+        cutoffDate = subMonths(now, 1);
+        dateFormat = "MMM d";
+        break;
+      case "year":
+        cutoffDate = subYears(now, 1);
+        dateFormat = "MMM d, yyyy";
+        break;
+      default:
+        cutoffDate = new Date(0);
+        dateFormat = "MMM d";
+    }
+
+    // Filter and sort entries by date (oldest first for chart)
+    const filteredEntries = weightEntries.filter(
+      (entry) => new Date(entry.date) >= cutoffDate
+    );
+
+    const sortedEntries = [...filteredEntries].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const labels = sortedEntries.map((entry) =>
-      format(parseISO(entry.date), "MMM d")
+      format(parseISO(entry.date), dateFormat)
     );
 
     const weights = sortedEntries.map((entry) => entry.weight);
@@ -185,10 +215,11 @@ export function WeightDashboard() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center">
+        {/* Stats Bar */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <div className="flex flex-col md:flex-row md:divide-x divide-gray-200">
+            {/* Current Weight */}
+            <div className="flex-1 flex items-center pb-4 md:pb-0 md:pr-6">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Scale className="h-6 w-6 text-blue-600" />
               </div>
@@ -203,10 +234,9 @@ export function WeightDashboard() {
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center">
+            {/* Change */}
+            <div className="flex-1 flex items-center py-4 md:py-0 md:px-6">
               <div className="p-2 bg-green-100 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-green-600" />
               </div>
@@ -225,10 +255,9 @@ export function WeightDashboard() {
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center">
+            {/* Progress */}
+            <div className="flex-1 flex items-center pt-4 md:pt-0 md:pl-6">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <Target className="h-6 w-6 text-purple-600" />
               </div>
@@ -246,20 +275,71 @@ export function WeightDashboard() {
 
         {/* Weight Progress Chart */}
         {weightEntries.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2" />
-                Weight Progress
-              </h3>
-              <div className="text-sm text-gray-600">
-                {weightEntries.length} entries
+          <>
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Weight Progress
+                </h3>
+                <div className="text-sm text-gray-600">
+                  {weightEntries.length} entries
+                </div>
+              </div>
+              <div className="h-80">
+                <Line data={getChartData()!} options={chartOptions} />
               </div>
             </div>
-            <div className="h-80">
-              <Line data={getChartData()!} options={chartOptions} />
+
+            {/* Time Period Filter Bar */}
+            <div className="flex justify-center mb-6">
+              <div className="bg-gray-200 rounded-full px-6 py-3 inline-flex items-center gap-4">
+                <button
+                  onClick={() => setTimePeriod("week")}
+                  className={`font-medium transition-colors ${
+                    timePeriod === "week"
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-gray-900"
+                  }`}
+                >
+                  Week
+                </button>
+                <span className="text-gray-400">|</span>
+                <button
+                  onClick={() => setTimePeriod("month")}
+                  className={`font-medium transition-colors ${
+                    timePeriod === "month"
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-gray-900"
+                  }`}
+                >
+                  Month
+                </button>
+                <span className="text-gray-400">|</span>
+                <button
+                  onClick={() => setTimePeriod("year")}
+                  className={`font-medium transition-colors ${
+                    timePeriod === "year"
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-gray-900"
+                  }`}
+                >
+                  Year
+                </button>
+                <span className="text-gray-400">|</span>
+                <button
+                  onClick={() => setTimePeriod("all")}
+                  className={`font-medium transition-colors ${
+                    timePeriod === "all"
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-gray-900"
+                  }`}
+                >
+                  All
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Add Weight Button */}
