@@ -13,6 +13,8 @@ export interface UserProfile {
   height: number;
   age: number;
   activity_level: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  username?: string;
+  friend_code?: string;
   created_at: string;
   updated_at: string;
 }

@@ -19,7 +19,9 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  updateProfile: (profile: Partial<UserProfile>) => Promise<{ error: any }>;
+  updateProfile: (
+    profile: Partial<UserProfile> & { username?: string }
+  ) => Promise<{ error: any }>;
   addWeight: (weight: number, notes?: string) => Promise<{ error: any }>;
   weightEntries: WeightEntry[];
 }
@@ -32,6 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [onboardingNeeded, setOnboardingNeeded] = useState(false);
+  const [pendingFriendCode, setPendingFriendCode] = useState<string | null>(
+    null
+  );
   const completeOnboarding = () => setOnboardingNeeded(false);
 
   // Fetch weights from Supabase and hydrate userProfile
@@ -40,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase
       .from("user_profiles")
       .select(
-        "starting_weight_lbs, target_weight_lbs, height_in, age, activity_level"
+        "starting_weight_lbs, target_weight_lbs, height_in, age, activity_level, username, friend_code"
       )
       .eq("user_id", userId)
       .maybeSingle();
@@ -84,6 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return existing?.activity_level ?? "moderate";
       })(),
+      username: (data?.username as string | undefined) ?? existing?.username,
+      friend_code:
+        (data?.friend_code as string | undefined) ?? existing?.friend_code,
       created_at: existing?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -173,6 +181,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOnboardingNeeded(true);
       // Clear any stale profile to ensure ProfileSetup shows without flicker
       setUserProfile(null);
+      // Generate a 6-char friend code and hold it until profile save
+      const friendCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      setPendingFriendCode(friendCode);
     }
 
     return { error: null };
@@ -220,7 +231,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear local state is handled by the auth state change listener
   };
 
-  const updateProfile = async (profile: Partial<UserProfile>) => {
+  const updateProfile = async (
+    profile: Partial<UserProfile> & { username?: string }
+  ) => {
     if (!user) {
       return { error: { message: "No user logged in" } };
     }
@@ -251,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : savedProfile?.age;
     const activityCandidate =
       profile.activity_level || savedProfile?.activity_level;
+    const usernameCandidate = profile.username;
 
     const hasAny =
       typeof startingCandidate === "number" ||
@@ -288,6 +302,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         payload.activity_level = activityCandidate;
       }
 
+      if (
+        typeof usernameCandidate === "string" &&
+        usernameCandidate.length > 0
+      ) {
+        payload.username = usernameCandidate;
+      }
+
+      // Attach friend_code: prefer existing from hydrated profile, else pending, else generate
+      if ((userProfile as any)?.friend_code) {
+        payload.friend_code = (userProfile as any).friend_code;
+      } else if (pendingFriendCode) {
+        payload.friend_code = pendingFriendCode;
+      } else {
+        payload.friend_code = Math.random()
+          .toString(36)
+          .slice(2, 8)
+          .toUpperCase();
+      }
+
       const { error: upsertError } = await supabase
         .from("user_profiles")
         .upsert(payload, { onConflict: "user_id" });
@@ -295,6 +328,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // eslint-disable-next-line no-console
         console.warn("Failed to upsert profile:", upsertError.message);
       }
+      // Clear pending friend code once persisted
+      setPendingFriendCode(null);
     }
 
     setUserProfile(savedProfile);

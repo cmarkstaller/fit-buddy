@@ -49,6 +49,7 @@ export function AuthForm() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
+            {/* Username moved to Profile Setup */}
             <div>
               <label htmlFor="email" className="sr-only">
                 Email address

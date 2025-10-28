@@ -236,7 +236,9 @@ export function WeightDashboard() {
               <div>
                 <h1 className="text-xl font-bold text-gray-900">FitBuddy</h1>
                 <p className="text-sm text-gray-600">
-                  Weight Tracking Dashboard
+                  {userProfile?.username
+                    ? userProfile.username
+                    : "Weight Tracking Dashboard"}
                 </p>
               </div>
             </div>

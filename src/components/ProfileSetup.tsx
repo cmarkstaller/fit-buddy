@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 import { UserProfile } from "../lib/localStorage";
 import { Scale, Target, Ruler, Calendar, Activity } from "lucide-react";
 
 export function ProfileSetup() {
-  const { updateProfile, completeOnboarding } = useAuth();
+  const { updateProfile, completeOnboarding, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
+    username: "",
     starting_weight: "",
     target_weight: "",
     height: "",
@@ -33,12 +35,13 @@ export function ProfileSetup() {
     setError("");
 
     const profileData = {
+      username: formData.username.trim(),
       starting_weight: parseFloat(formData.starting_weight),
       target_weight: parseFloat(formData.target_weight),
       height: parseFloat(formData.height),
       age: parseInt(formData.age),
       activity_level: formData.activity_level,
-    };
+    } as const;
 
     // Validate data
     if (
@@ -92,6 +95,19 @@ export function ProfileSetup() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., chrisfit"
+                  value={formData.username}
+                  onChange={(e) => handleChange("username", e.target.value)}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Scale className="inline h-4 w-4 mr-2" />
