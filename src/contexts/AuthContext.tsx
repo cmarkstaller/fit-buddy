@@ -7,7 +7,6 @@ import {
   saveUserProfile,
   getUserProfile,
 } from "../lib/localStorage";
-// import { mockWeightEntries } from "../data/weights";
 import { supabase } from "../lib/supabase";
 
 interface AuthContextType {
@@ -99,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(merged);
   };
 
-  // Fetch all weight entries for the user from Supabase
+  // Load all weight entries for the user from Supabase
   const loadAllWeightEntries = async (userId: string) => {
     const { data, error } = await supabase
       .from("user_weight_entries")
@@ -113,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const mapped = (data || []).map((row: any) => ({
+    const mapped: WeightEntry[] = (data || []).map((row: any) => ({
       id: row.id as string,
       user_id: userId,
       weight: Number(row.weight_lbs),
@@ -121,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       notes: (row.notes as string | null) ?? undefined,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-    })) as WeightEntry[];
+    }));
 
     setWeightEntries(mapped);
   };
@@ -143,9 +142,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(appUser); // Store in localStorage for compatibility
 
         await hydrateProfileFromSupabase(appUser.id);
+        // Load weight entries from DB
         await loadAllWeightEntries(appUser.id);
         // Normal session restore: default to not needing onboarding
         setOnboardingNeeded(false);
+
+        // Load real weight entries
+        await loadAllWeightEntries(appUser.id);
       }
 
       setLoading(false);
@@ -228,11 +231,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(appUser);
       setCurrentUser(appUser);
 
-      // Load user profile hydrated from Supabase and all weight entries
+      // Load user profile hydrated from Supabase
       await hydrateProfileFromSupabase(appUser.id);
+      // Load weight entries from DB
       await loadAllWeightEntries(appUser.id);
       // Login flow should not show onboarding by default
       setOnboardingNeeded(false);
+
+      await loadAllWeightEntries(appUser.id);
     }
 
     return { error: null };
@@ -353,12 +359,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: { message: "No user logged in" } };
     }
 
-    // Normalize
+    // Normalize and upsert to DB
     const rounded = Math.round(weight * 10) / 10;
     const normalized = Math.min(1000, Math.max(0, rounded));
     const today = new Date().toISOString().split("T")[0];
 
-    // Persist to Supabase (upsert by user_id + entry_date)
     const { error: dbError } = await supabase
       .from("user_weight_entries")
       .upsert(
@@ -375,7 +380,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn("Failed to upsert weight entry:", dbError.message);
     }
 
-    // Update in-memory list for UI responsiveness
+    // Update local state for responsiveness
     const newEntry: WeightEntry = {
       id: Date.now().toString(36),
       user_id: user.id,
@@ -385,7 +390,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setWeightEntries((prev) => [newEntry, ...prev]);
+    setWeightEntries((prev) => [
+      newEntry,
+      ...prev.filter((e) => e.date !== today),
+    ]);
 
     return { error: null };
   };
