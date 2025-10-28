@@ -7,7 +7,7 @@ import {
   saveUserProfile,
   getUserProfile,
 } from "../lib/localStorage";
-import { mockWeightEntries } from "../data/weights";
+// import { mockWeightEntries } from "../data/weights";
 import { supabase } from "../lib/supabase";
 
 interface AuthContextType {
@@ -99,6 +99,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(merged);
   };
 
+  // Fetch all weight entries for the user from Supabase
+  const loadAllWeightEntries = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("user_weight_entries")
+      .select("id, entry_date, weight_lbs, notes, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("entry_date", { ascending: false });
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to load weight entries:", error.message);
+      return;
+    }
+
+    const mapped = (data || []).map((row: any) => ({
+      id: row.id as string,
+      user_id: userId,
+      weight: Number(row.weight_lbs),
+      date: row.entry_date as string,
+      notes: (row.notes as string | null) ?? undefined,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string,
+    })) as WeightEntry[];
+
+    setWeightEntries(mapped);
+  };
+
   useEffect(() => {
     // Check for existing Supabase session
     const checkSession = async () => {
@@ -116,17 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(appUser); // Store in localStorage for compatibility
 
         await hydrateProfileFromSupabase(appUser.id);
+        await loadAllWeightEntries(appUser.id);
         // Normal session restore: default to not needing onboarding
         setOnboardingNeeded(false);
-
-        // For demo purposes, load weight entries from mock data
-        setWeightEntries(
-          mockWeightEntries
-            .map((entry) => ({ ...entry, user_id: appUser.id }))
-            .sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-            )
-        );
       }
 
       setLoading(false);
@@ -148,6 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(appUser);
 
         hydrateProfileFromSupabase(appUser.id);
+        loadAllWeightEntries(appUser.id);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -208,19 +228,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(appUser);
       setCurrentUser(appUser);
 
-      // Load user profile hydrated from Supabase
+      // Load user profile hydrated from Supabase and all weight entries
       await hydrateProfileFromSupabase(appUser.id);
+      await loadAllWeightEntries(appUser.id);
       // Login flow should not show onboarding by default
       setOnboardingNeeded(false);
-
-      // For demo purposes, load weight entries from mock data
-      setWeightEntries(
-        mockWeightEntries
-          .map((entry) => ({ ...entry, user_id: appUser.id }))
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-      );
     }
 
     return { error: null };
