@@ -5,7 +5,7 @@ import { ProfileSetup } from "./components/ProfileSetup";
 import { WeightDashboard } from "./components/WeightDashboard";
 
 function AppRoutes() {
-  const { user, userProfile, loading } = useAuth();
+  const { user, loading, onboardingNeeded } = useAuth();
 
   if (loading) {
     return (
@@ -22,11 +22,8 @@ function AppRoutes() {
     return <AuthForm />;
   }
 
-  if (!userProfile) {
-    return <ProfileSetup />;
-  }
-
-  return <WeightDashboard />;
+  // Show setup only right after sign up; otherwise go to dashboard
+  return onboardingNeeded ? <ProfileSetup /> : <WeightDashboard />;
 }
 
 function App() {

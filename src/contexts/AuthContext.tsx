@@ -14,6 +14,8 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  onboardingNeeded: boolean;
+  completeOnboarding: () => void;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -29,13 +31,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onboardingNeeded, setOnboardingNeeded] = useState(false);
+  const completeOnboarding = () => setOnboardingNeeded(false);
 
   // Fetch weights from Supabase and hydrate userProfile
   const hydrateProfileFromSupabase = async (userId: string) => {
     const existing = getUserProfile(userId);
     const { data, error } = await supabase
       .from("user_starting_weights")
-      .select("starting_weight_lbs, target_weight_lbs")
+      .select(
+        "starting_weight_lbs, target_weight_lbs, height_in, age, activity_level"
+      )
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -49,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Do not enforce required fields here; login should not flash onboarding
+
     const merged: UserProfile = {
       id: existing?.id || Date.now().toString(36),
       user_id: userId,
@@ -60,9 +68,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         (data?.target_weight_lbs as number | undefined) ??
         existing?.target_weight ??
         0,
-      height: existing?.height ?? 0,
-      age: existing?.age ?? 0,
-      activity_level: existing?.activity_level ?? "moderate",
+      height: (data?.height_in as number | undefined) ?? existing?.height ?? 0,
+      age: (data?.age as number | undefined) ?? existing?.age ?? 0,
+      activity_level: ((): UserProfile["activity_level"] => {
+        const fromDb = data?.activity_level as string | undefined;
+        const allowed: UserProfile["activity_level"][] = [
+          "sedentary",
+          "light",
+          "moderate",
+          "active",
+          "very_active",
+        ];
+        if (fromDb && (allowed as string[]).includes(fromDb)) {
+          return fromDb as UserProfile["activity_level"];
+        }
+        return existing?.activity_level ?? "moderate";
+      })(),
       created_at: existing?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -87,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(appUser); // Store in localStorage for compatibility
 
         await hydrateProfileFromSupabase(appUser.id);
+        // Normal session restore: default to not needing onboarding
+        setOnboardingNeeded(false);
 
         // For demo purposes, load weight entries from mock data
         setWeightEntries(
@@ -121,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setUserProfile(null);
         setWeightEntries([]);
+        setOnboardingNeeded(false);
       }
     });
 
@@ -145,6 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       setUser(appUser);
       setCurrentUser(appUser);
+      // Newly signed up users should go through onboarding
+      setOnboardingNeeded(true);
+      // Clear any stale profile to ensure ProfileSetup shows without flicker
+      setUserProfile(null);
     }
 
     return { error: null };
@@ -171,6 +199,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Load user profile hydrated from Supabase
       await hydrateProfileFromSupabase(appUser.id);
+      // Login flow should not show onboarding by default
+      setOnboardingNeeded(false);
 
       // For demo purposes, load weight entries from mock data
       setWeightEntries(
@@ -211,12 +241,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       Number.isFinite(profile.target_weight)
         ? profile.target_weight
         : savedProfile?.target_weight;
+    const heightCandidate =
+      typeof profile.height === "number" && Number.isFinite(profile.height)
+        ? profile.height
+        : savedProfile?.height;
+    const ageCandidate =
+      typeof profile.age === "number" && Number.isFinite(profile.age)
+        ? profile.age
+        : savedProfile?.age;
+    const activityCandidate =
+      profile.activity_level || savedProfile?.activity_level;
 
-    const hasEither =
+    const hasAny =
       typeof startingCandidate === "number" ||
-      typeof targetCandidate === "number";
+      typeof targetCandidate === "number" ||
+      typeof heightCandidate === "number" ||
+      typeof ageCandidate === "number" ||
+      typeof activityCandidate === "string";
 
-    if (hasEither) {
+    if (hasAny) {
       const payload: Record<string, any> = { user_id: user.id };
 
       if (typeof startingCandidate === "number") {
@@ -229,6 +272,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const roundedTarget = Math.round(targetCandidate * 10) / 10;
         const normalizedTarget = Math.min(1000, Math.max(0, roundedTarget));
         payload.target_weight_lbs = normalizedTarget;
+      }
+
+      if (typeof heightCandidate === "number") {
+        const normalizedHeight = Math.min(120, Math.max(0, heightCandidate));
+        payload.height_in = normalizedHeight;
+      }
+
+      if (typeof ageCandidate === "number") {
+        const normalizedAge = Math.min(120, Math.max(0, ageCandidate));
+        payload.age = normalizedAge;
+      }
+
+      if (typeof activityCandidate === "string") {
+        payload.activity_level = activityCandidate;
       }
 
       const { error: upsertError } = await supabase
@@ -272,6 +329,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userProfile,
     weightEntries,
     loading,
+    onboardingNeeded,
+    completeOnboarding,
     signUp,
     signIn,
     signOut,

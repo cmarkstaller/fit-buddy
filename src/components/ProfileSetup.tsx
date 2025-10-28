@@ -4,7 +4,7 @@ import { UserProfile } from "../lib/localStorage";
 import { Scale, Target, Ruler, Calendar, Activity } from "lucide-react";
 
 export function ProfileSetup() {
-  const { updateProfile } = useAuth();
+  const { updateProfile, completeOnboarding } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -57,6 +57,9 @@ export function ProfileSetup() {
 
       if (result.error) {
         setError(result.error.message || "Failed to save profile");
+      } else {
+        // Mark onboarding complete and route to dashboard
+        completeOnboarding();
       }
     } catch (error) {
       console.error("Unexpected error:", error);
