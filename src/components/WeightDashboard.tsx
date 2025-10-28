@@ -308,12 +308,6 @@ export function WeightDashboard() {
         },
       },
       y: {
-        min: userProfile?.target_weight
-          ? userProfile.target_weight - 5
-          : undefined,
-        max: userProfile?.starting_weight
-          ? userProfile.starting_weight + 5
-          : undefined,
         grid: {
           color: "rgba(107, 114, 128, 0.1)",
         },
