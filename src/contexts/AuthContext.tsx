@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hydrateProfileFromSupabase = async (userId: string) => {
     const existing = getUserProfile(userId);
     const { data, error } = await supabase
-      .from("user_starting_weights")
+      .from("user_profiles")
       .select(
         "starting_weight_lbs, target_weight_lbs, height_in, age, activity_level"
       )
@@ -289,14 +289,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { error: upsertError } = await supabase
-        .from("user_starting_weights")
+        .from("user_profiles")
         .upsert(payload, { onConflict: "user_id" });
       if (upsertError) {
         // eslint-disable-next-line no-console
-        console.warn(
-          "Failed to upsert starting/target weight:",
-          upsertError.message
-        );
+        console.warn("Failed to upsert profile:", upsertError.message);
       }
     }
 
