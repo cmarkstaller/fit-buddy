@@ -1,8 +1,15 @@
-import { BrowserRouter as Router } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AuthForm } from "./components/AuthForm";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { WeightDashboard } from "./components/WeightDashboard";
+import { SharedDashboard } from "./components/SharedDashboard";
+import { BottomNav } from "./components/BottomNav";
 
 function AppRoutes() {
   const { user, loading, onboardingNeeded } = useAuth();
@@ -18,12 +25,21 @@ function AppRoutes() {
     );
   }
 
-  if (!user) {
-    return <AuthForm />;
-  }
+  if (!user) return <AuthForm />;
 
-  // Show setup only right after sign up; otherwise go to dashboard
-  return onboardingNeeded ? <ProfileSetup /> : <WeightDashboard />;
+  if (onboardingNeeded) return <ProfileSetup />;
+
+  return (
+    <div className="pb-16">
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<WeightDashboard />} />
+        <Route path="/shared" element={<SharedDashboard />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+      <BottomNav />
+    </div>
+  );
 }
 
 function App() {
