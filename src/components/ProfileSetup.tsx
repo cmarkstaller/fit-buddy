@@ -77,11 +77,11 @@ export function ProfileSetup() {
   };
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen flex items-center p-4">
+      <div className="max-w-2xl mx-auto w-full">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+            <div className="mx-auto h-16 w-16 bg-[rgb(60,96,96)] rounded-full flex items-center justify-center mb-4">
               <Scale className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -205,7 +205,7 @@ export function ProfileSetup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[rgb(60,96,96)] text-white py-3 px-4 rounded-lg font-medium hover:bg-[rgb(52,84,84)] focus:outline-none focus:ring-2 focus:ring-[rgb(60,96,96)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Saving..." : "Complete Setup"}
             </button>

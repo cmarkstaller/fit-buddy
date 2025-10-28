@@ -2,7 +2,7 @@
   "name": "FitBuddy - Weight Tracking App",
   "short_name": "FitBuddy",
   "description": "Track your weight daily and reach your fitness goals",
-  "theme_color": "#3b82f6",
+  "theme_color": "#3C6060",
   "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "portrait",
