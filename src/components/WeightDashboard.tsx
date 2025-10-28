@@ -134,8 +134,6 @@ export function WeightDashboard() {
   };
 
   const getChartData = () => {
-    if (weightEntries.length === 0) return null;
-
     // Filter entries based on selected time period
     const now = new Date();
     let cutoffDate: Date;
@@ -171,22 +169,64 @@ export function WeightDashboard() {
 
     // Target weight line (flat across x-axis)
     const targetWeight = userProfile?.target_weight;
-    const targetDataset =
-      typeof targetWeight === "number" && Number.isFinite(targetWeight)
-        ? {
-            label: "Target Weight",
-            data: sortedEntries.map((entry) => ({
-              x: entry.date,
-              y: targetWeight,
-            })),
-            borderColor: "#D1D5DB", // light gray
-            borderWidth: 2,
-            borderDash: [6, 6] as [number, number],
-            pointRadius: 0,
-            pointHoverRadius: 0,
-            tension: 0,
-          }
-        : null;
+    const hasTarget =
+      typeof targetWeight === "number" && Number.isFinite(targetWeight);
+
+    // Always create a dashed target line that spans the visible range
+    let targetData: any[] = [];
+    if (hasTarget) {
+      let startDate: Date;
+      let endDate: Date;
+
+      if (timePeriod === "all") {
+        if (weightEntries.length > 0) {
+          // Span from earliest to latest entry
+          const allSorted = [...weightEntries].sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+          );
+          startDate = new Date(allSorted[0].date);
+          endDate = new Date(allSorted[allSorted.length - 1].date);
+        } else {
+          // Default span when no data
+          endDate = now;
+          startDate = subMonths(now, 6);
+        }
+      } else {
+        // Use the selected period window relative to now
+        endDate = now;
+        switch (timePeriod) {
+          case "week":
+            startDate = subDays(now, 7);
+            break;
+          case "month":
+            startDate = subMonths(now, 1);
+            break;
+          case "year":
+            startDate = subYears(now, 1);
+            break;
+          default:
+            startDate = subMonths(now, 6);
+        }
+      }
+
+      targetData = [
+        { x: startDate.toISOString().split("T")[0], y: targetWeight },
+        { x: endDate.toISOString().split("T")[0], y: targetWeight },
+      ];
+    }
+
+    const targetDataset = hasTarget
+      ? {
+          label: "Target Weight",
+          data: targetData,
+          borderColor: "#D1D5DB", // light gray
+          borderWidth: 2,
+          borderDash: [6, 6] as [number, number],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+        }
+      : null;
 
     return {
       datasets: [
@@ -268,6 +308,12 @@ export function WeightDashboard() {
         },
       },
       y: {
+        min: userProfile?.target_weight
+          ? userProfile.target_weight - 5
+          : undefined,
+        max: userProfile?.starting_weight
+          ? userProfile.starting_weight + 5
+          : undefined,
         grid: {
           color: "rgba(107, 114, 128, 0.1)",
         },
@@ -389,70 +435,69 @@ export function WeightDashboard() {
         </div>
 
         {/* Weight Progress Chart */}
-        {weightEntries.length > 0 && (
-          <>
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Weight Progress
-                </h3>
-                <div className="text-sm text-gray-600">
-                  {weightEntries.length} entries
-                </div>
-              </div>
-              <div className="h-80">
-                <Line data={getChartData()!} options={chartOptions} />
+        <>
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Weight Progress
+              </h3>
+              <div className="text-sm text-gray-600">
+                {weightEntries.length}{" "}
+                {weightEntries.length === 1 ? "entry" : "entries"}
               </div>
             </div>
+            <div className="h-80">
+              <Line data={getChartData()} options={chartOptions} />
+            </div>
+          </div>
 
-            {/* Time Period Filter Bar */}
-            <div className="flex justify-center mb-6">
-              <div className="bg-gray-200 rounded-full px-2 py-2 inline-flex items-center gap-2">
-                <button
-                  onClick={() => setTimePeriod("week")}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    timePeriod === "week"
-                      ? "bg-[rgb(60,96,96)] text-white"
-                      : "text-gray-700 hover:text-gray-900"
-                  }`}
-                >
-                  Week
-                </button>
-                <button
-                  onClick={() => setTimePeriod("month")}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    timePeriod === "month"
-                      ? "bg-[rgb(60,96,96)] text-white"
-                      : "text-gray-700 hover:text-gray-900"
-                  }`}
-                >
-                  Month
-                </button>
-                <button
-                  onClick={() => setTimePeriod("year")}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    timePeriod === "year"
-                      ? "bg-[rgb(60,96,96)] text-white"
-                      : "text-gray-700 hover:text-gray-900"
-                  }`}
-                >
-                  Year
-                </button>
-                <button
-                  onClick={() => setTimePeriod("all")}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    timePeriod === "all"
-                      ? "bg-[rgb(60,96,96)] text-white"
-                      : "text-gray-700 hover:text-gray-900"
-                  }`}
-                >
-                  All
-                </button>
-              </div>
+          {/* Time Period Filter Bar */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-gray-200 rounded-full px-2 py-2 inline-flex items-center gap-2">
+              <button
+                onClick={() => setTimePeriod("week")}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  timePeriod === "week"
+                    ? "bg-[rgb(60,96,96)] text-white"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setTimePeriod("month")}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  timePeriod === "month"
+                    ? "bg-[rgb(60,96,96)] text-white"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+              >
+                Month
+              </button>
+              <button
+                onClick={() => setTimePeriod("year")}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  timePeriod === "year"
+                    ? "bg-[rgb(60,96,96)] text-white"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+              >
+                Year
+              </button>
+              <button
+                onClick={() => setTimePeriod("all")}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  timePeriod === "all"
+                    ? "bg-[rgb(60,96,96)] text-white"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+              >
+                All
+              </button>
             </div>
-          </>
-        )}
+          </div>
+        </>
 
         {/* Floating Add Weight Button */}
         <button
