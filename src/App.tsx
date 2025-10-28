@@ -10,6 +10,7 @@ import { ProfileSetup } from "./components/ProfileSetup";
 import { WeightDashboard } from "./components/WeightDashboard";
 import { SharedDashboard } from "./components/SharedDashboard";
 import { BottomNav } from "./components/BottomNav";
+import { Settings } from "./components/Settings";
 
 function AppRoutes() {
   const { user, loading, onboardingNeeded } = useAuth();
@@ -35,6 +36,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<WeightDashboard />} />
         <Route path="/shared" element={<SharedDashboard />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       <BottomNav />

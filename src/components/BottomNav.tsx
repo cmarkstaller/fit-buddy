@@ -10,25 +10,25 @@ export function BottomNav() {
       <div className="max-w-4xl mx-auto grid grid-cols-2">
         <Link
           to="/dashboard"
-          className={`flex items-center justify-center py-3 space-x-2 ${
+          className={`flex items-center justify-center py-4 ${
             isActive("/dashboard")
-              ? "text-blue-600"
+              ? "text-[rgb(60,96,96)]"
               : "text-gray-600 hover:text-gray-900"
           }`}
+          aria-label="Dashboard"
         >
-          <Home className="h-5 w-5" />
-          <span className="text-sm font-medium">My Dashboard</span>
+          <Home className="h-7 w-7" />
         </Link>
         <Link
           to="/shared"
-          className={`flex items-center justify-center py-3 space-x-2 ${
+          className={`flex items-center justify-center py-4 ${
             isActive("/shared")
-              ? "text-blue-600"
+              ? "text-[rgb(60,96,96)]"
               : "text-gray-600 hover:text-gray-900"
           }`}
+          aria-label="Shared"
         >
-          <Users className="h-5 w-5" />
-          <span className="text-sm font-medium">Shared</span>
+          <Users className="h-7 w-7" />
         </Link>
       </div>
     </nav>

@@ -204,7 +204,7 @@ export function SharedDashboard() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-emerald-600 rounded-full flex items-center justify-center">
+            <div className="h-10 w-10 bg-[rgb(60,96,96)] rounded-full flex items-center justify-center">
               <Users className="h-6 w-6 text-white" />
             </div>
             <div>

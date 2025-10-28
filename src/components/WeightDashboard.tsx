@@ -1,6 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Plus, TrendingUp, Calendar, Target, Scale } from "lucide-react";
+import {
+  Plus,
+  TrendingUp,
+  Calendar,
+  Scale,
+  Menu,
+  X,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { format, parseISO, subDays, subMonths, subYears } from "date-fns";
 import {
   Chart as ChartJS,
@@ -33,9 +42,28 @@ export function WeightDashboard() {
   const [newWeight, setNewWeight] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [timePeriod, setTimePeriod] = useState<
     "week" | "month" | "year" | "all"
-  >("all");
+  >("month");
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMenu]);
 
   const addWeightEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,10 +92,37 @@ export function WeightDashboard() {
   };
 
   const getWeightChange = () => {
-    if (weightEntries.length < 2) return 0;
-    const latest = weightEntries[0].weight;
-    const previous = weightEntries[1].weight;
-    return latest - previous;
+    if (weightEntries.length === 0) return 0;
+    // Determine cutoff based on selected time period
+    const now = new Date();
+    let cutoffDate: Date;
+    switch (timePeriod) {
+      case "week":
+        cutoffDate = subDays(now, 7);
+        break;
+      case "month":
+        cutoffDate = subMonths(now, 1);
+        break;
+      case "year":
+        cutoffDate = subYears(now, 1);
+        break;
+      default:
+        cutoffDate = new Date(0);
+    }
+
+    // Filter entries within the period
+    const periodEntries = weightEntries.filter(
+      (entry) => new Date(entry.date) >= cutoffDate
+    );
+    if (periodEntries.length < 2) return 0;
+
+    // Sort by date ascending to pick earliest and latest in the range
+    const sortedByDate = [...periodEntries].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const earliest = sortedByDate[0].weight;
+    const latest = sortedByDate[sortedByDate.length - 1].weight;
+    return latest - earliest;
   };
 
   const getProgressToGoal = () => {
@@ -171,7 +226,10 @@ export function WeightDashboard() {
             return format(parseISO(context[0].raw.x), "MMM d, yyyy");
           },
           label: function (context: any) {
-            return `Weight: ${context.parsed.y} lbs`;
+            const y = Number(context.parsed.y);
+            return `Weight: ${
+              Number.isFinite(y) ? y.toFixed(1) : context.parsed.y
+            } lbs`;
           },
         },
       },
@@ -186,7 +244,7 @@ export function WeightDashboard() {
             ? "week"
             : timePeriod === "year"
             ? "month"
-            : "day") as "day" | "week" | "month",
+            : "month") as "day" | "week" | "month",
           displayFormats: {
             day: "EEE d",
             week: "MMM d",
@@ -196,7 +254,10 @@ export function WeightDashboard() {
           tooltipFormat: "MMM d, yyyy",
         },
         grid: {
-          display: false,
+          display: true,
+          color: "rgba(107, 114, 128, 0.15)",
+          lineWidth: 1,
+          drawOnChartArea: true,
         },
         ticks: {
           color: "#6B7280",
@@ -216,8 +277,10 @@ export function WeightDashboard() {
             size: 12,
           },
           callback: function (value: any) {
-            return value + " lbs";
+            const v = Number(value);
+            return `${Number.isFinite(v) ? v.toFixed(1) : value} lbs`;
           },
+          maxTicksLimit: 6,
         },
       },
     },
@@ -230,7 +293,7 @@ export function WeightDashboard() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <div className="h-10 w-10 bg-[rgb(60,96,96)] rounded-full flex items-center justify-center">
                 <Scale className="h-6 w-6 text-white" />
               </div>
               <div>
@@ -242,71 +305,85 @@ export function WeightDashboard() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={signOut}
-              className="text-gray-600 hover:text-gray-900 text-sm font-medium"
-            >
-              Sign Out
-            </button>
+            {/* Hamburger Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 text-gray-600 hover:text-gray-900 focus:outline-none"
+              >
+                {showMenu ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+              {/* Dropdown Menu */}
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                  <a
+                    href="/settings"
+                    onClick={() => setShowMenu(false)}
+                    className="w-full flex items-center space-x-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Settings className="h-5 w-5" />
+                    <span>Settings</span>
+                  </a>
+                  <button
+                    onClick={signOut}
+                    className="w-full flex items-center space-x-3 px-4 py-3 text-left text-sm text-red-600 hover:bg-gray-50"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
         {/* Stats Bar */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <div className="flex flex-col md:flex-row md:divide-x divide-gray-200">
+        <div className="bg-white rounded-xl shadow-sm px-4 py-3 mb-8">
+          <div className="grid grid-cols-3 divide-x divide-gray-200 text-center">
             {/* Current Weight */}
-            <div className="flex-1 flex items-center pb-4 md:pb-0 md:pr-6">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Scale className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Current Weight
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {weightEntries.length > 0
-                    ? `${weightEntries[0].weight} lbs`
-                    : "No data"}
-                </p>
-              </div>
+            <div className="px-2">
+              <p className="text-[11px] font-medium text-gray-600 tracking-wide uppercase">
+                Current
+              </p>
+              <p className="text-lg font-bold text-gray-900">
+                {weightEntries.length > 0
+                  ? `${weightEntries[0].weight} lbs`
+                  : "—"}
+              </p>
             </div>
 
             {/* Change */}
-            <div className="flex-1 flex items-center py-4 md:py-0 md:px-6">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Change</p>
-                <p
-                  className={`text-2xl font-bold ${
-                    getWeightChange() >= 0 ? "text-red-600" : "text-green-600"
-                  }`}
-                >
-                  {weightEntries.length > 1
-                    ? `${
-                        getWeightChange() >= 0 ? "+" : ""
-                      }${getWeightChange().toFixed(1)} lbs`
-                    : "No change"}
-                </p>
-              </div>
+            <div className="px-2">
+              <p className="text-[11px] font-medium text-gray-600 tracking-wide uppercase">
+                Change
+              </p>
+              <p
+                className={`text-lg font-bold ${
+                  getWeightChange() >= 0 ? "text-red-600" : "text-green-600"
+                }`}
+              >
+                {weightEntries.length > 1
+                  ? `${
+                      getWeightChange() >= 0 ? "+" : ""
+                    }${getWeightChange().toFixed(1)} lbs`
+                  : "—"}
+              </p>
             </div>
 
             {/* Progress */}
-            <div className="flex-1 flex items-center pt-4 md:pt-0 md:pl-6">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Target className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Progress</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {userProfile
-                    ? `${getProgressToGoal().toFixed(0)}%`
-                    : "No goal set"}
-                </p>
-              </div>
+            <div className="px-2">
+              <p className="text-[11px] font-medium text-gray-600 tracking-wide uppercase">
+                Progress
+              </p>
+              <p className="text-lg font-bold text-gray-900">
+                {userProfile ? `${getProgressToGoal().toFixed(0)}%` : "—"}
+              </p>
             </div>
           </div>
         </div>
@@ -331,45 +408,42 @@ export function WeightDashboard() {
 
             {/* Time Period Filter Bar */}
             <div className="flex justify-center mb-6">
-              <div className="bg-gray-200 rounded-full px-6 py-3 inline-flex items-center gap-4">
+              <div className="bg-gray-200 rounded-full px-2 py-2 inline-flex items-center gap-2">
                 <button
                   onClick={() => setTimePeriod("week")}
-                  className={`font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     timePeriod === "week"
-                      ? "text-blue-600"
+                      ? "bg-[rgb(60,96,96)] text-white"
                       : "text-gray-700 hover:text-gray-900"
                   }`}
                 >
                   Week
                 </button>
-                <span className="text-gray-400">|</span>
                 <button
                   onClick={() => setTimePeriod("month")}
-                  className={`font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     timePeriod === "month"
-                      ? "text-blue-600"
+                      ? "bg-[rgb(60,96,96)] text-white"
                       : "text-gray-700 hover:text-gray-900"
                   }`}
                 >
                   Month
                 </button>
-                <span className="text-gray-400">|</span>
                 <button
                   onClick={() => setTimePeriod("year")}
-                  className={`font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     timePeriod === "year"
-                      ? "text-blue-600"
+                      ? "bg-[rgb(60,96,96)] text-white"
                       : "text-gray-700 hover:text-gray-900"
                   }`}
                 >
                   Year
                 </button>
-                <span className="text-gray-400">|</span>
                 <button
                   onClick={() => setTimePeriod("all")}
-                  className={`font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     timePeriod === "all"
-                      ? "text-blue-600"
+                      ? "bg-[rgb(60,96,96)] text-white"
                       : "text-gray-700 hover:text-gray-900"
                   }`}
                 >
@@ -380,16 +454,14 @@ export function WeightDashboard() {
           </>
         )}
 
-        {/* Add Weight Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center space-x-2"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add Today's Weight</span>
-          </button>
-        </div>
+        {/* Floating Add Weight Button */}
+        <button
+          aria-label="Add Today's Weight"
+          onClick={() => setShowAddForm(true)}
+          className="fixed z-20 bottom-20 left-1/2 -translate-x-1/2 h-16 w-16 rounded-full bg-[rgb(159,137,103)] text-white shadow-xl flex items-center justify-center hover:bg-[rgb(140,120,90)] focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[rgb(159,137,103)]"
+        >
+          <Plus className="h-7 w-7" />
+        </button>
 
         {/* Add Weight Form */}
         {showAddForm && (
