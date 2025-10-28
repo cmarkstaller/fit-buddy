@@ -341,12 +341,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: { message: "No user logged in" } };
     }
 
-    // Update in-memory mock list for demo
+    // Normalize
+    const rounded = Math.round(weight * 10) / 10;
+    const normalized = Math.min(1000, Math.max(0, rounded));
+    const today = new Date().toISOString().split("T")[0];
+
+    // Persist to Supabase (upsert by user_id + entry_date)
+    const { error: dbError } = await supabase
+      .from("user_weight_entries")
+      .upsert(
+        {
+          user_id: user.id,
+          entry_date: today,
+          weight_lbs: normalized,
+          notes: notes || null,
+        },
+        { onConflict: "user_id,entry_date" }
+      );
+    if (dbError) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to upsert weight entry:", dbError.message);
+    }
+
+    // Update in-memory list for UI responsiveness
     const newEntry: WeightEntry = {
       id: Date.now().toString(36),
       user_id: user.id,
-      weight,
-      date: new Date().toISOString().split("T")[0],
+      weight: normalized,
+      date: today,
       notes: notes || undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
