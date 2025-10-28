@@ -236,7 +236,7 @@ export function WeightDashboard() {
           borderColor: "rgb(34, 85, 108)",
           backgroundColor: "rgba(59, 130, 246, 0.1)",
           borderWidth: 3,
-          pointRadius: 0,
+          pointRadius: data.length === 1 ? 4 : 0,
           pointHoverRadius: 6,
           tension: 0.1,
         },
@@ -304,7 +304,7 @@ export function WeightDashboard() {
           font: {
             size: 12,
           },
-          source: "auto" as const,
+          source: "data" as const,
         },
       },
       y: {

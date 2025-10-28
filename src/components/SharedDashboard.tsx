@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -38,6 +39,7 @@ ChartJS.register(
 
 export function SharedDashboard() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [timePeriod, setTimePeriod] = useState<
     "week" | "month" | "year" | "all"
   >("month");
@@ -46,6 +48,7 @@ export function SharedDashboard() {
   const [message, setMessage] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+  const [viewingFriendId, setViewingFriendId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Load real data: me + friends (requires RLS policy below)
@@ -59,6 +62,14 @@ export function SharedDashboard() {
     }[]
   >([]);
   const [loading, setLoading] = useState(false);
+  const [viewingFriendData, setViewingFriendData] = useState<{
+    username: string;
+    entries: { date: string; weight: number }[];
+    targetWeight?: number;
+  } | null>(null);
+  const [friendTimePeriod, setFriendTimePeriod] = useState<
+    "week" | "month" | "year" | "all"
+  >("month");
 
   useEffect(() => {
     // Close menu on outside click
@@ -74,6 +85,44 @@ export function SharedDashboard() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showMenu]);
+
+  useEffect(() => {
+    const loadFriendData = async () => {
+      if (!viewingFriendId) {
+        setViewingFriendData(null);
+        return;
+      }
+
+      try {
+        // Fetch friend's username and target weight
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("username, target_weight_lbs")
+          .eq("user_id", viewingFriendId)
+          .maybeSingle();
+
+        // Fetch friend's weight entries
+        const { data: weights } = await supabase
+          .from("user_weight_entries")
+          .select("entry_date, weight_lbs")
+          .eq("user_id", viewingFriendId)
+          .order("entry_date", { ascending: true });
+
+        setViewingFriendData({
+          username: profile?.username || "Friend",
+          entries: (weights || []).map((w: any) => ({
+            date: w.entry_date,
+            weight: w.weight_lbs,
+          })),
+          targetWeight: profile?.target_weight_lbs,
+        });
+      } catch (error) {
+        console.error("Failed to load friend data:", error);
+      }
+    };
+
+    loadFriendData();
+  }, [viewingFriendId]);
 
   const loadDashboardData = async () => {
     if (!user) return;
@@ -148,7 +197,7 @@ export function SharedDashboard() {
           borderColor: p.border,
           backgroundColor: p.bg,
           borderWidth: 3,
-          pointRadius: 0,
+          pointRadius: pts.length === 1 ? 4 : 0,
           tension: 0.2,
         });
 
@@ -256,6 +305,7 @@ export function SharedDashboard() {
           ticks: {
             color: "#6B7280",
             font: { size: 12 },
+            source: "data" as const,
           },
         },
         y: {
@@ -393,7 +443,11 @@ export function SharedDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Friend Cards */}
           {friendCards.map((f) => (
-            <div key={f.userId} className="bg-white rounded-xl shadow-sm p-4">
+            <button
+              key={f.userId}
+              onClick={() => setViewingFriendId(f.userId)}
+              className="bg-white rounded-xl shadow-sm p-4 text-left hover:shadow-md transition-shadow cursor-pointer"
+            >
               <p className="text-sm text-gray-600">{f.username}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {f.current != null ? `${f.current.toFixed(1)} lbs` : "--"}
@@ -408,7 +462,7 @@ export function SharedDashboard() {
                   ? `${f.change30d > 0 ? "+" : ""}${f.change30d} lbs`
                   : "--"}
               </p>
-            </div>
+            </button>
           ))}
 
           {/* Add Friend Button Card */}
@@ -542,6 +596,333 @@ export function SharedDashboard() {
                     {message}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Friend Dashboard Modal */}
+        {viewingFriendId && viewingFriendData && (
+          <div className="fixed inset-0 z-30 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {viewingFriendData.username}'s Dashboard
+                </h3>
+                <button
+                  onClick={() => setViewingFriendId(null)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                {/* Stats */}
+                {(() => {
+                  // Filter entries based on selected time period
+                  const now = new Date();
+                  let cutoffDate: Date;
+                  switch (friendTimePeriod) {
+                    case "week":
+                      cutoffDate = subDays(now, 7);
+                      break;
+                    case "month":
+                      cutoffDate = subMonths(now, 1);
+                      break;
+                    case "year":
+                      cutoffDate = subYears(now, 1);
+                      break;
+                    default:
+                      cutoffDate = new Date(0);
+                  }
+
+                  const filteredEntries = viewingFriendData.entries.filter(
+                    (entry) => new Date(entry.date) >= cutoffDate
+                  );
+
+                  return (
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                      <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
+                          Latest
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {filteredEntries.length > 0
+                            ? `${filteredEntries[
+                                filteredEntries.length - 1
+                              ].weight.toFixed(1)} lbs`
+                            : "--"}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
+                          Change
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {filteredEntries.length > 1
+                            ? (() => {
+                                const change =
+                                  filteredEntries[filteredEntries.length - 1]
+                                    .weight - filteredEntries[0].weight;
+                                return `${
+                                  change > 0 ? "+" : ""
+                                }${change.toFixed(1)} lbs`;
+                              })()
+                            : "--"}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
+                          Entries
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {filteredEntries.length}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Chart */}
+                {viewingFriendData.entries.length > 0 &&
+                  (() => {
+                    // Filter entries based on selected time period
+                    const now = new Date();
+                    let cutoffDate: Date;
+                    switch (friendTimePeriod) {
+                      case "week":
+                        cutoffDate = subDays(now, 7);
+                        break;
+                      case "month":
+                        cutoffDate = subMonths(now, 1);
+                        break;
+                      case "year":
+                        cutoffDate = subYears(now, 1);
+                        break;
+                      default:
+                        cutoffDate = new Date(0);
+                    }
+
+                    const filteredEntries = viewingFriendData.entries.filter(
+                      (entry) => new Date(entry.date) >= cutoffDate
+                    );
+
+                    // Determine the date range for target line
+                    let startDate: Date;
+                    let endDate: Date;
+                    if (friendTimePeriod === "all") {
+                      const allEntries = viewingFriendData.entries;
+                      if (allEntries.length > 0) {
+                        startDate = new Date(allEntries[0].date);
+                        endDate = new Date(
+                          allEntries[allEntries.length - 1].date
+                        );
+                      } else {
+                        endDate = now;
+                        startDate = subMonths(now, 6);
+                      }
+                    } else {
+                      endDate = now;
+                      switch (friendTimePeriod) {
+                        case "week":
+                          startDate = subDays(now, 7);
+                          break;
+                        case "month":
+                          startDate = subMonths(now, 1);
+                          break;
+                        case "year":
+                          startDate = subYears(now, 1);
+                          break;
+                        default:
+                          startDate = subMonths(now, 6);
+                      }
+                    }
+
+                    const chartDatasets: any[] = [
+                      {
+                        label: "Weight (lbs)",
+                        data: filteredEntries.map((e) => ({
+                          x: e.date,
+                          y: e.weight,
+                        })),
+                        borderColor: "rgb(34, 85, 108)",
+                        backgroundColor: "rgba(59, 130, 246, 0.1)",
+                        borderWidth: 3,
+                        pointRadius: filteredEntries.length === 1 ? 4 : 0,
+                        pointHoverRadius: 6,
+                        tension: 0.1,
+                      },
+                    ];
+
+                    // Add target weight line if available
+                    if (
+                      viewingFriendData.targetWeight &&
+                      typeof viewingFriendData.targetWeight === "number" &&
+                      Number.isFinite(viewingFriendData.targetWeight)
+                    ) {
+                      chartDatasets.push({
+                        label: "Target Weight",
+                        data: [
+                          {
+                            x: startDate.toISOString().split("T")[0],
+                            y: viewingFriendData.targetWeight,
+                          },
+                          {
+                            x: endDate.toISOString().split("T")[0],
+                            y: viewingFriendData.targetWeight,
+                          },
+                        ],
+                        borderColor: "#D1D5DB",
+                        borderWidth: 2,
+                        borderDash: [6, 6],
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0,
+                      });
+                    }
+
+                    // Create options for friend chart with correct time unit
+                    const friendOptions = {
+                      ...options,
+                      scales: {
+                        ...options.scales,
+                        x: {
+                          ...(options.scales as any).x,
+                          type: "time" as const,
+                          time: {
+                            unit: (friendTimePeriod === "week"
+                              ? "day"
+                              : friendTimePeriod === "month"
+                              ? "week"
+                              : friendTimePeriod === "year"
+                              ? "month"
+                              : "month") as "day" | "week" | "month",
+                            displayFormats: {
+                              day: "EEE d",
+                              week: "MMM d",
+                              month: "MMM yyyy",
+                              year: "yyyy",
+                            },
+                            tooltipFormat: "MMM d, yyyy",
+                          },
+                          ticks: {
+                            ...(options.scales as any).x.ticks,
+                            source: "data" as const,
+                          },
+                        },
+                      },
+                    };
+
+                    return (
+                      <div className="mb-6">
+                        <h4 className="text-md font-semibold text-gray-900 mb-4">
+                          Weight Trend
+                        </h4>
+                        <div className="h-64">
+                          <Line
+                            data={{ datasets: chartDatasets }}
+                            options={friendOptions as any}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                {/* Time Period Filter */}
+                <div className="flex justify-center mb-6">
+                  <div className="bg-gray-200 rounded-full px-2 py-2 inline-flex items-center gap-2">
+                    <button
+                      onClick={() => setFriendTimePeriod("week")}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        friendTimePeriod === "week"
+                          ? "bg-[rgb(60,96,96)] text-white"
+                          : "text-gray-700 hover:text-gray-900"
+                      }`}
+                    >
+                      Week
+                    </button>
+                    <button
+                      onClick={() => setFriendTimePeriod("month")}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        friendTimePeriod === "month"
+                          ? "bg-[rgb(60,96,96)] text-white"
+                          : "text-gray-700 hover:text-gray-900"
+                      }`}
+                    >
+                      Month
+                    </button>
+                    <button
+                      onClick={() => setFriendTimePeriod("year")}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        friendTimePeriod === "year"
+                          ? "bg-[rgb(60,96,96)] text-white"
+                          : "text-gray-700 hover:text-gray-900"
+                      }`}
+                    >
+                      Year
+                    </button>
+                    <button
+                      onClick={() => setFriendTimePeriod("all")}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        friendTimePeriod === "all"
+                          ? "bg-[rgb(60,96,96)] text-white"
+                          : "text-gray-700 hover:text-gray-900"
+                      }`}
+                    >
+                      All
+                    </button>
+                  </div>
+                </div>
+
+                {/* Weight History */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-900 mb-4">
+                    Entries
+                  </h4>
+                  <div className="space-y-2">
+                    {(() => {
+                      // Filter entries based on selected time period
+                      const now = new Date();
+                      let cutoffDate: Date;
+                      switch (friendTimePeriod) {
+                        case "week":
+                          cutoffDate = subDays(now, 7);
+                          break;
+                        case "month":
+                          cutoffDate = subMonths(now, 1);
+                          break;
+                        case "year":
+                          cutoffDate = subYears(now, 1);
+                          break;
+                        default:
+                          cutoffDate = new Date(0);
+                      }
+
+                      const filteredEntries = viewingFriendData.entries.filter(
+                        (entry) => new Date(entry.date) >= cutoffDate
+                      );
+
+                      return filteredEntries
+                        .slice()
+                        .reverse()
+                        .slice(0, 10)
+                        .map((entry, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          >
+                            <span className="text-sm text-gray-600">
+                              {format(parseISO(entry.date), "MMM d, yyyy")}
+                            </span>
+                            <span className="text-lg font-bold text-gray-900">
+                              {entry.weight.toFixed(1)} lbs
+                            </span>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users } from "lucide-react";
+import { Home, Users, Trophy } from "lucide-react";
 
 export function BottomNav() {
   const location = useLocation();
@@ -7,7 +7,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 bg-white border-t shadow-sm z-10">
-      <div className="max-w-4xl mx-auto grid grid-cols-2">
+      <div className="max-w-4xl mx-auto grid grid-cols-3">
         <Link
           to="/dashboard"
           className={`flex items-center justify-center py-4 ${
@@ -29,6 +29,17 @@ export function BottomNav() {
           aria-label="Shared"
         >
           <Users className="h-7 w-7" />
+        </Link>
+        <Link
+          to="/challenges"
+          className={`flex items-center justify-center py-4 ${
+            isActive("/challenges")
+              ? "text-[rgb(60,96,96)]"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+          aria-label="Challenges"
+        >
+          <Trophy className="h-7 w-7" />
         </Link>
       </div>
     </nav>
