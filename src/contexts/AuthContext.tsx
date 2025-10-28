@@ -245,8 +245,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    // Clear local state is handled by the auth state change listener
+    // Always attempt remote sign-out, but clear local state regardless
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Supabase signOut failed or no session; clearing locally.");
+    } finally {
+      // Proactively clear local app state so user can fully sign out even if auth timed out
+      setUser(null);
+      setUserProfile(null);
+      setWeightEntries([]);
+      setOnboardingNeeded(false);
+      setCurrentUser(null);
+    }
   };
 
   const updateProfile = async (
