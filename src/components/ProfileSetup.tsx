@@ -97,6 +97,8 @@ export function ProfileSetup() {
                 <input
                   type="number"
                   step="0.1"
+                  min={0}
+                  max={1000}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="150.0"

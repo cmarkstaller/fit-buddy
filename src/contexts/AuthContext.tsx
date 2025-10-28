@@ -4,7 +4,6 @@ import {
   UserProfile,
   WeightEntry,
   setCurrentUser,
-  getCurrentUser,
   saveUserProfile,
   getUserProfile,
 } from "../lib/localStorage";
@@ -31,11 +30,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch weights from Supabase and hydrate userProfile
+  const hydrateProfileFromSupabase = async (userId: string) => {
+    const existing = getUserProfile(userId);
+    const { data, error } = await supabase
+      .from("user_starting_weights")
+      .select("starting_weight_lbs, target_weight_lbs")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to fetch weights from Supabase:", error.message);
+    }
+
+    if (!existing && !data) {
+      setUserProfile(null);
+      return;
+    }
+
+    const merged: UserProfile = {
+      id: existing?.id || Date.now().toString(36),
+      user_id: userId,
+      starting_weight:
+        (data?.starting_weight_lbs as number | undefined) ??
+        existing?.starting_weight ??
+        0,
+      target_weight:
+        (data?.target_weight_lbs as number | undefined) ??
+        existing?.target_weight ??
+        0,
+      height: existing?.height ?? 0,
+      age: existing?.age ?? 0,
+      activity_level: existing?.activity_level ?? "moderate",
+      created_at: existing?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setUserProfile(merged);
+  };
+
   useEffect(() => {
     // Check for existing Supabase session
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (session?.user) {
         const appUser: User = {
           id: session.user.id,
@@ -44,25 +85,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(appUser);
         setCurrentUser(appUser); // Store in localStorage for compatibility
-        
-        const profile = getUserProfile(appUser.id);
-        setUserProfile(profile);
-        
+
+        await hydrateProfileFromSupabase(appUser.id);
+
         // For demo purposes, load weight entries from mock data
         setWeightEntries(
           mockWeightEntries
             .map((entry) => ({ ...entry, user_id: appUser.id }))
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            )
         );
       }
-      
+
       setLoading(false);
     };
-    
+
     checkSession();
-    
+
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const appUser: User = {
           id: session.user.id,
@@ -71,16 +115,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(appUser);
         setCurrentUser(appUser);
-        
-        const profile = getUserProfile(appUser.id);
-        setUserProfile(profile);
+
+        hydrateProfileFromSupabase(appUser.id);
       } else {
         setUser(null);
         setUserProfile(null);
         setWeightEntries([]);
       }
     });
-    
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -126,15 +169,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(appUser);
       setCurrentUser(appUser);
 
-      // Load user profile and weight entries
-      const profile = getUserProfile(appUser.id);
-      setUserProfile(profile);
-      
+      // Load user profile hydrated from Supabase
+      await hydrateProfileFromSupabase(appUser.id);
+
       // For demo purposes, load weight entries from mock data
       setWeightEntries(
         mockWeightEntries
           .map((entry) => ({ ...entry, user_id: appUser.id }))
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
       );
     }
 
@@ -154,6 +198,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { profile: savedProfile, error } = saveUserProfile(user.id, profile);
     if (error) {
       return { error: { message: error } };
+    }
+
+    // Store starting and target weights to Supabase (upsert, owner RLS enforced)
+    const startingCandidate =
+      typeof profile.starting_weight === "number" &&
+      Number.isFinite(profile.starting_weight)
+        ? profile.starting_weight
+        : savedProfile?.starting_weight;
+    const targetCandidate =
+      typeof profile.target_weight === "number" &&
+      Number.isFinite(profile.target_weight)
+        ? profile.target_weight
+        : savedProfile?.target_weight;
+
+    const hasEither =
+      typeof startingCandidate === "number" ||
+      typeof targetCandidate === "number";
+
+    if (hasEither) {
+      const payload: Record<string, any> = { user_id: user.id };
+
+      if (typeof startingCandidate === "number") {
+        const roundedStart = Math.round(startingCandidate * 10) / 10;
+        const normalizedStart = Math.min(1000, Math.max(0, roundedStart));
+        payload.starting_weight_lbs = normalizedStart;
+      }
+
+      if (typeof targetCandidate === "number") {
+        const roundedTarget = Math.round(targetCandidate * 10) / 10;
+        const normalizedTarget = Math.min(1000, Math.max(0, roundedTarget));
+        payload.target_weight_lbs = normalizedTarget;
+      }
+
+      const { error: upsertError } = await supabase
+        .from("user_starting_weights")
+        .upsert(payload, { onConflict: "user_id" });
+      if (upsertError) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "Failed to upsert starting/target weight:",
+          upsertError.message
+        );
+      }
     }
 
     setUserProfile(savedProfile);

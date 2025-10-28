@@ -114,6 +114,25 @@ export function WeightDashboard() {
       y: entry.weight,
     }));
 
+    // Target weight line (flat across x-axis)
+    const targetWeight = userProfile?.target_weight;
+    const targetDataset =
+      typeof targetWeight === "number" && Number.isFinite(targetWeight)
+        ? {
+            label: "Target Weight",
+            data: sortedEntries.map((entry) => ({
+              x: entry.date,
+              y: targetWeight,
+            })),
+            borderColor: "#D1D5DB", // light gray
+            borderWidth: 2,
+            borderDash: [6, 6] as [number, number],
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0,
+          }
+        : null;
+
     return {
       datasets: [
         {
@@ -126,6 +145,7 @@ export function WeightDashboard() {
           pointHoverRadius: 6,
           tension: 0.1,
         },
+        ...(targetDataset ? [targetDataset] : []),
       ],
     };
   };
